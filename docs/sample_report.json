@@ -1,0 +1,14 @@
+{
+  "total_rows": 1020000,
+  "rows_with_anomaly": 132004,
+  "anomaly_pct": 12.942,
+  "per_rule": {
+    "missing_value": 20402,
+    "age_out_of_range": 20388,
+    "rate_out_of_range": 20387,
+    "non_positive_amount": 20410,
+    "unknown_product": 20380,
+    "maturity_before_issue": 20382,
+    "duplicate_row": 39196
+  }
+}
