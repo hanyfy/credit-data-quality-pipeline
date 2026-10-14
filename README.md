@@ -15,7 +15,7 @@ Dans une banque, des données de crédit incorrectes (âges impossibles, doublon
 - Est vérifiable : les anomalies sont injectées à taux connu, donc les tests prouvent que les contrôles retrouvent ce qui a été injecté.
 
 ## Ce que ça démontre (et ce que ça ne démontre pas)
-Maîtrise de PySpark, de l'orchestration Airflow, de la qualité des données « as code », des tests et de Docker, dans un contexte crédit. Ce n'est **pas** un projet de production : données synthétiques, Spark en mode local, DAG non exécuté dans un Airflow réel.
+Maîtrise de PySpark, de l'orchestration Airflow, de la qualité des données « as code », des tests et de Docker, dans un contexte crédit. Ce n'est **pas** un projet de production : données synthétiques, Spark en mode local, DAG vérifié par `airflow tasks test` (pas de planificateur ni de serveur Airflow en continu).
 
 ## Architecture
 ```
@@ -55,6 +55,9 @@ Sur 1 020 000 lignes (1 000 000 + 2 % de doublons injectés), Spark `local[*]`, 
 ![Anomalies par règle](docs/anomalies_per_rule.png)
 *Graphique tracé à partir de `docs/sample_report.json` (sortie réelle du job sur 1,02 M de lignes).*
 
+## Exécution du DAG dans Airflow
+Le DAG a été exécuté dans l'image officielle `apache/airflow:2.9.3` avec `airflow tasks test` (une fois chaque tâche) : `generate_synthetic_loans` puis `run_quality_checks` se terminent en **SUCCESS** (sur 102 000 lignes, 14,6 % d'anomalies, sous le seuil de démo de 20 % défini dans le DAG). Ce n'est pas un déploiement Airflow complet : pas de scheduler ni de webserver, pas de planification quotidienne observée.
+
 ## Tests
 - `tests/test_checks.py` : chaque règle sur de petits cas construits à la main, y compris les valeurs limites.
 - `tests/test_end_to_end.py` : données générées avec anomalies injectées → les contrôles retrouvent le bon nombre de lignes ; génération reproductible.
@@ -63,5 +66,5 @@ Un test a mis en évidence un piège réel : un `NaN` pandas devient un `NaN` Sp
 
 ## Pistes d'évolution
 - Passer de Spark en mode local à un cluster (le code est le même ; non testé sur cluster).
-- Valider le DAG Airflow dans une instance réelle (voir statut ci-dessous).
+- Déployer le DAG sur une instance Airflow complète (scheduler + webserver) au lieu d'un test de tâches isolé.
 - Ajouter du profilage statistique (dérive entre deux lots, corrélations) en plus des règles fixes ; seule la détection de revenus aberrants par IQR est implémentée.
