@@ -51,3 +51,23 @@ def test_boundaries_are_valid(spark):
                       row(loan_id=3, interest_rate=0.0), row(loan_id=4, interest_rate=60.0)])
     assert checks.run_checks(df)["age_out_of_range"] == 0
     assert checks.run_checks(df)["rate_out_of_range"] == 0
+
+
+def test_income_outlier_detects_extreme_value_only(spark):
+    rows = [row(loan_id=i, monthly_income=2000.0 + 10 * i) for i in range(1, 201)]
+    rows.append(row(loan_id=999, monthly_income=5_000_000.0))
+    r = checks.income_outlier(make(spark, rows)).collect()
+    assert [x.loan_id for x in r] == [999]
+
+
+def test_income_outlier_ignores_missing_and_non_positive(spark):
+    rows = [row(loan_id=i, monthly_income=2000.0 + i) for i in range(1, 101)]
+    rows += [row(loan_id=500, monthly_income=None), row(loan_id=501, monthly_income=0.0)]
+    assert checks.income_outlier(make(spark, rows)).count() == 0
+
+
+def test_income_outlier_ignores_nan(spark):
+    """Un NaN (pandas) ne doit être ni compté comme outlier ni fausser les quantiles."""
+    rows = [row(loan_id=i, monthly_income=2000.0 + i) for i in range(1, 101)]
+    rows += [row(loan_id=500 + i, monthly_income=float("nan")) for i in range(20)]
+    assert checks.income_outlier(make(spark, rows)).count() == 0

@@ -39,6 +39,8 @@ def generate(n_rows: int = 100_000, seed: int = 42, anomaly_rate: float = 0.02) 
     df.loc[pick(), "loan_amount"] = -df["loan_amount"].abs().iloc[0]  # montants négatifs
     df.loc[pick(), "product"] = "unknown_product"                    # modalité inconnue
     idx = pick()
+    df.loc[idx, "monthly_income"] = (df.loc[idx, "monthly_income"] * 1000).round(2)  # revenus aberrants (x1000)
+    idx = pick()
     df.loc[idx, "maturity_date"] = df.loc[idx, "issue_date"] - pd.Timedelta(days=30)  # échéance < émission
     dup = df.sample(k, random_state=seed)
     return pd.concat([df, dup], ignore_index=True)                   # doublons exacts

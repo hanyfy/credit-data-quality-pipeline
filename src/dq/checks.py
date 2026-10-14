@@ -46,6 +46,20 @@ def maturity_before_issue(df: DataFrame) -> DataFrame:
     return _tag(df, F.col("maturity_date") < F.col("issue_date"), "maturity_before_issue")
 
 
+def income_outlier(df: DataFrame, k: float = 3.0) -> DataFrame:
+    """Revenus aberrants : règle de l'écart interquartile (IQR) appliquée sur le log du revenu.
+    Le revenu est très asymétrique ; le log le rend proche d'une loi symétrique. Bornes : Q1 - k*IQR, Q3 + k*IQR.
+    Quantiles approchés (approxQuantile), calculés sur les revenus strictement positifs."""
+    # NaN > 0 vaut vrai en Spark (NaN est « plus grand » que tout nombre) : on l'exclut explicitement
+    positive = (F.col("monthly_income") > 0) & ~F.isnan("monthly_income")
+    valid = df.filter(positive).select(F.log("monthly_income").alias("v"))
+    q1, q3 = valid.approxQuantile("v", [0.25, 0.75], 0.001)
+    iqr = q3 - q1
+    low, high = q1 - k * iqr, q3 + k * iqr
+    lg = F.log(F.col("monthly_income"))
+    return _tag(df, positive & ((lg < low) | (lg > high)), "income_outlier")
+
+
 def duplicates(df: DataFrame) -> DataFrame:
     """Lignes dont tous les champs sont identiques à une autre ligne (toutes les occurrences)."""
     cnt = df.groupBy(*df.columns).count().filter(F.col("count") > 1).drop("count")
@@ -59,6 +73,7 @@ RULES: Dict[str, Callable[[DataFrame], DataFrame]] = {
     "non_positive_amount": non_positive_amount,
     "unknown_product": unknown_product,
     "maturity_before_issue": maturity_before_issue,
+    "income_outlier": income_outlier,
     "duplicate_row": duplicates,
 }
 
